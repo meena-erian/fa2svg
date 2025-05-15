@@ -17,6 +17,11 @@ cd fa2svg
 pip install -e .
 ```
 
+# Upload
+```bash
+twine upload --config-file "./.pypirc" dist\*
+```
+
 ## Usage
 
 ```python
