@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from fa2svg.converter import to_inline_png_img
 

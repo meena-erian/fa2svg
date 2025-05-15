@@ -30,6 +30,8 @@ STYLE_PROP = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
 # Render at 10× pixel density for crispness
 IMAGE_SCALE = 10
 
+FA_MARKER = "__FA__"
+
 
 @lru_cache(maxsize=256)
 def _fetch_raw_svg(style_dir: str, icon_name: str) -> str:
@@ -135,56 +137,106 @@ def get_inherited_color(el) -> str:
 
 def to_inline_png_img(html: str) -> str:
     """
-    Convert all <i>/<span> FontAwesome tags in `html` into
-    high-DPI PNG data-URIs wrapped in <img> tags.
-
-    - Skips any icon not in VALID_FA_ICONS (per‐style).
-    - Fuzzy‐matches typos to the closest valid icon (cutoff=0.6).
-    - Gracefully skips on network or rendering errors.
+    Same behavior as before, but:
+     - scans only once for <i>/<span> with fa-*
+     - caches data-URIs per unique key in a local dict
+     - uses faster find_all+filter instead of select()
+     - aliases globals to locals for speed
     """
     soup = BeautifulSoup(html, "lxml")
 
-    for el in soup.select(ICON_SELECTOR):
+    # alias for speed
+    get_font = get_computed_font_size
+    get_col  = get_inherited_color
+    render   = _render_png_data_uri
+    SM, VI   = STYLE_MAP, VALID_FA_ICONS
+    marker   = FA_MARKER
+
+    # local cache so each unique URI is rendered exactly once
+    local_cache: dict[tuple, str] = {}
+
+    # grab only the tags we care about
+    candidates = [
+        el for el in soup.find_all(["i", "span"])
+        if any(c.startswith("fa-") for c in el.get("class", []))
+    ]
+
+    for el in candidates:
         classes = el.get("class", [])
-        # find the 'fa-xyz' icon name
-        icon = next(
-            (c.split("fa-")[1] for c in classes if c.startswith("fa-") and c != "fa"),
-            None
-        )
+        # extract "mug-saucer" from "fa-mug-saucer"
+        icon = next((c.split("fa-")[1]
+                     for c in classes
+                     if c.startswith("fa-") and c != "fa"),
+                    None)
         if not icon:
             continue
 
-        # determine style folder (solid/regular/brands)
-        style_dir = next((STYLE_MAP[c] for c in classes if c in STYLE_MAP), "solid")
-
-        # fetch the correct set of valid icons for this style
-        allowed = VALID_FA_ICONS.get(style_dir, set())
-
-        # if not exact, try fuzzy match
+        # find style folder, validate/fuzzy-match
+        style_dir = next((SM[c] for c in classes if c in SM), "solid")
+        allowed   = VI.get(style_dir, ())
         if icon not in allowed:
-            match = difflib.get_close_matches(icon, allowed, n=1, cutoff=0.6)
-            if match:
-                icon = match[0]
-            else:
-                continue  # skip entirely
+            m = difflib.get_close_matches(icon, allowed, n=1, cutoff=0.6)
+            if not m:
+                continue
+            icon = m[0]
 
-        # compute display size & fill color
-        size_px = int(get_computed_font_size(el))
-        color = get_inherited_color(el)
+        # compute size/color
+        size_px = int(get_font(el))
+        color   = get_col(el)
 
-        # render PNG data URI (skip on any exception)
-        try:
-            data_uri = _render_png_data_uri(style_dir, icon, size_px, color)
-        except Exception:
-            continue
+        key = (style_dir, icon, size_px, color)
+        data_uri = local_cache.get(key)
+        if data_uri is None:
+            try:
+                data_uri = render(style_dir, icon, size_px, color)
+            except Exception:
+                continue
+            local_cache[key] = data_uri
 
-        # replace <i>/<span> with <img>
+        # build the <img>
         img = soup.new_tag("img", src=data_uri)
+        # stash original info in alt/title exactly as before
+        orig_style = el.get("style", "").replace("|", ";")
+        parts = [el.name, " ".join(classes)]
+        if orig_style:
+            parts.append(orig_style)
+        payload = "|".join(parts)
+
+        img["alt"]   = marker + payload
+        img["title"] = img["alt"]
         img["style"] = f"height:{size_px}px;width:auto;vertical-align:-0.125em;"
+
         el.replace_with(img)
 
     return str(soup)
 
+
+def revert_to_original_fa(html: str,
+                          remove_other_inline_img: bool = False) -> str:
+    soup = BeautifulSoup(html, "lxml")
+
+    for img in list(soup.find_all("img")):
+        alt = img.get("alt", "")
+        if alt.startswith(FA_MARKER):
+            # strip marker, then split into at most 3 parts
+            payload = alt[len(FA_MARKER):]
+            tag_name, cls_str, *rest = payload.split("|", 2)
+            classes = cls_str.split()
+            original_style = rest[0] if rest else None
+
+            new_el = soup.new_tag(tag_name)
+            new_el["class"] = classes
+            if original_style:
+                new_el["style"] = original_style
+
+            img.replace_with(new_el)
+
+        else:
+            if remove_other_inline_img:
+                img.decompose()
+            # else: leave untouched
+
+    return str(soup)
 
 
 def to_inline_svg(html: str) -> str:

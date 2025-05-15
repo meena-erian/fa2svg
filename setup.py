@@ -9,7 +9,7 @@ long_description = (HERE / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="fa2svg",
-    version="0.1.5",  # bump as needed
+    version="0.1.6",  # bump as needed
     description="Convert Font Awesome HTML tags into inline SVG",
     long_description=long_description,
     long_description_content_type="text/markdown",
