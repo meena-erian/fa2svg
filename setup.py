@@ -27,6 +27,7 @@ setup(
         "beautifulsoup4",
         "lxml",
         "requests",
+        "cairosvg",
     ],
     python_requires=">=3.6",
 )

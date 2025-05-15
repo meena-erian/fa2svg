@@ -26,6 +26,7 @@ Make sure your `.pypirc` is set up as described in the project docs, then:
 
 ```bash
 # from project root
+python -m build
 twine upload --config-file "./.pypirc" dist/*
 ```
 
