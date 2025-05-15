@@ -1,2 +1,2 @@
 # fa2svg: inline Font Awesome icons as SVG
-__version__ = "0.1.0"
+__version__ = "0.1.1"

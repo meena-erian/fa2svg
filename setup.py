@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="fa2svg",
-    version="0.1.0",
+    version="0.1.1",
     description="Convert Font Awesome HTML tags into inline SVG",
     author="meena-erian",
     url="https://github.com/meena-erian/fa2svg",

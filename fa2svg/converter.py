@@ -6,14 +6,12 @@ from bs4 import BeautifulSoup
 
 # Font Awesome version and CDN base (jsDelivr)
 FA_VERSION = "6.7.2"
-FA_CDN_BASE = f"https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@{FA_VERSION}/svgs"
+FA_CDN_BASE  = f"https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@{FA_VERSION}/svgs"
 
-# Selectors and mappings
 # Match any <i> or <span> with a class containing 'fa-'
 ICON_SELECTOR = "i[class*='fa-'], span[class*='fa-']"
-STYLE_MAP = {"fas": "solid", "far": "regular", "fab": "brands"}
-# Inline-style extraction regex (e.g. "font-size:24px;color:#f00;")
-STYLE_PROP = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
+STYLE_MAP     = {"fas": "solid", "far": "regular", "fab": "brands"}
+STYLE_PROP    = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
 
 @lru_cache(maxsize=256)
 def _fetch_raw_svg(style_dir: str, icon_name: str) -> str:
@@ -23,38 +21,41 @@ def _fetch_raw_svg(style_dir: str, icon_name: str) -> str:
     resp.raise_for_status()
     return resp.text
 
-
 def to_inline_svg(html: str) -> str:
-    """Replace Font Awesome <i> or <span> tags with inline SVG preserving size & color."""
+    """Replace Font Awesome <i>/<span> tags with inline SVG preserving appearance."""
     soup = BeautifulSoup(html, "lxml")
 
     for el in soup.select(ICON_SELECTOR):
         classes = el.get("class", [])
-        # extract icon slug from class list (e.g. "fa-mug-saucer" → "mug-saucer")
-        icon = next((c.split("fa-")[1] for c in classes if c.startswith("fa-") and c != "fa"), None)
+        icon    = next((c.split("fa-")[1] for c in classes if c.startswith("fa-") and c != "fa"), None)
         if not icon:
             continue
 
-        # determine style folder (solid/regular/brands)
         style_dir = next((STYLE_MAP[c] for c in classes if c in STYLE_MAP), "solid")
 
-        # parse inline styles, if any
+        # grab any inline override
         styles = dict(STYLE_PROP.findall(el.get("style", "")))
-        size = styles.get("font-size")
-        color = styles.get("color")
+        size   = styles.get("font-size")  # e.g. "24px" or "1.5em"
+        color  = styles.get("color")      # e.g. "#c60" or "red"
 
-        # fetch and parse the raw SVG
         raw_svg = _fetch_raw_svg(style_dir, icon)
-        svg = BeautifulSoup(raw_svg, "lxml").find("svg")
+        svg     = BeautifulSoup(raw_svg, "lxml").find("svg")
 
-        # apply inline attributes
+        # SIZE: explicit px/em or fallback to 1em
         if size:
-            svg["width"] = size
+            svg["width"]  = size
             svg["height"] = size
+        else:
+            svg["width"]  = "1em"
+            svg["height"] = "1em"
+
+        # COLOR: explicit or inherited
         if color:
             svg["fill"] = color
+        else:
+            svg["fill"] = "currentColor"
 
-        # replace the original <i> or <span> with the SVG element
+        # replace the original tag
         el.replace_with(svg)
 
     return str(soup)

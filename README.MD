@@ -1,7 +1,7 @@
 
 # fa2svg
 
-A Python package to convert Font Awesome `<i>`/`<span>` tags into inline SVG elements. It was specifically made so you can use Font Awesome in emails by passing the email body through this converted before sending.
+A Python package to convert Font Awesome `<i>`/`<span>` tags into inline SVG elements. It was specifically made so you can use Font Awesome in emails by passing the email body through this converter before sending.
 
 ## Installation
 
