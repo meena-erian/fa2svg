@@ -1,7 +1,8 @@
-
 # fa2svg
 
-A Python package to convert Font Awesome `<i>`/`<span>` tags into inline SVG elements. It was specifically made so you can use Font Awesome in emails by passing the email body through this converter before sending.
+A small Python package that converts Font Awesome `<i>`/`<span>` tags into **embedded SVG images** (`<img src="data:image/svg+xml;base64,…">`) so you can safely use FA icons in emails (or any HTML source that strips out inline `<svg>`).
+
+---
 
 ## Installation
 
@@ -17,21 +18,57 @@ cd fa2svg
 pip install -e .
 ```
 
-# Upload
+---
+
+## Upload to PyPI
+
+Make sure your `.pypirc` is set up as described in the project docs, then:
+
 ```bash
-twine upload --config-file "./.pypirc" dist\*
+# from project root
+twine upload --config-file "./.pypirc" dist/*
 ```
+
+---
 
 ## Usage
 
 ```python
-from fa2svg.converter import to_inline_svg
+from fa2svg.converter import to_inline_svg_img
 
-html = '<p>Icon: <i class="fas fa-mug-saucer" style="font-size:64px;color:#c60"></i></p>'
-print(to_inline_svg(html))
+html = '''
+  <p>
+    Coffee time:
+    <i class="fas fa-mug-saucer"
+       style="font-size:64px;color:#c60">
+    </i>
+    and stars:
+    <span class="far fa-star"
+          style="font-size:48px;color:gold">
+    </span>
+  </p>
+'''
+
+converted = to_inline_svg_img(html)
+print(converted)
+# => all <i>/<span> icons replaced with <img src="data:image/svg+xml;base64,…" …
+#    preserving exact size, color, aspect ratio & baseline alignment
 ```
+
+---
+
+## API
+
+* **`to_inline_svg_img(html: str) → str`**
+  Fetches the correct FA SVG, bakes in your inline `font-size` and `color` (or defaults to `1em` & current text color), and outputs a `<img>` tag with a base64-encoded SVG data URI, plus the proper `width`, `height` and `vertical-align` CSS.
+
+---
 
 ## Contributing
 
-Fork the repo, open issues, submit pull requests!
+1. Fork the repo
+2. Create a topic branch
+3. Commit your changes & push
+4. Open a Pull Request
 
+Issues and PRs are very welcome!
