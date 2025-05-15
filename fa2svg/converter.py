@@ -21,19 +21,8 @@ STYLE_MAP = {"fas": "solid", "far": "regular", "fab": "brands"}
 # Regex to pull inline CSS props like 'font-size:24px;color:#f00;'
 STYLE_PROP = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
 
-import re
-import base64
-from functools import lru_cache
-
-import requests
-from bs4 import BeautifulSoup
-import cairosvg  # pip install cairosvg
-
-FA_VERSION    = "6.7.2"
-FA_CDN_BASE   = f"https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@{FA_VERSION}/svgs"
-ICON_SELECTOR = "i[class*='fa-'], span[class*='fa-']"
-STYLE_MAP     = {"fas": "solid", "far": "regular", "fab": "brands"}
-STYLE_PROP    = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
+# Scale factor for higher resolution (pixel density)
+IMAGE_SCALE = 10
 
 @lru_cache(maxsize=256)
 def _fetch_raw_svg(style_dir: str, icon_name: str) -> str:
@@ -80,27 +69,23 @@ def to_inline_png_img(html: str) -> str:
 
     for el in soup.select(ICON_SELECTOR):
         classes = el.get("class", [])
-        icon    = next((c.split("fa-")[1]
-                        for c in classes
-                        if c.startswith("fa-") and c!="fa"),
-                       None)
+        icon = next((c.split("fa-")[1]
+                     for c in classes
+                     if c.startswith("fa-") and c != "fa"),
+                    None)
         if not icon:
             continue
         style_dir = next((STYLE_MAP[c] for c in classes if c in STYLE_MAP), "solid")
 
         # 1) compute desired pixel height & color
         size_px = get_computed_font_size(el)
-        color   = get_inherited_color(el)
+        color = get_inherited_color(el)
 
         # 2) fetch the raw SVG text
         raw_svg = _fetch_raw_svg(style_dir, icon)
 
-        # 3) strip any width/height on <svg> and inject fill + preserveAspectRatio
-        svg_txt = re.sub(
-            r'\s(width|height)="[^"]*"','',
-            raw_svg,
-            flags=re.IGNORECASE
-        )
+        # 3) strip width/height and inject fill + preserveAspectRatio
+        svg_txt = re.sub(r'\s(width|height)="[^"]*"', '', raw_svg, flags=re.IGNORECASE)
         svg_txt = re.sub(
             r'<svg\b',
             f'<svg fill="{color}" preserveAspectRatio="xMidYMid meet"',
@@ -108,26 +93,26 @@ def to_inline_png_img(html: str) -> str:
             count=1
         )
 
-        # 4) pull viewBox from that same string
+        # 4) pull viewBox for aspect
         m = re.search(r'viewBox="([\d.\s]+)"', svg_txt)
         if m:
-            nums    = [float(n) for n in m.group(1).split()]
-            vb_w,vb_h = nums[2], nums[3]
+            nums = [float(n) for n in m.group(1).split()]
+            vb_w, vb_h = nums[2], nums[3]
             target_h = int(size_px)
-            target_w = int(size_px * (vb_w/vb_h))
+            target_w = int(size_px * (vb_w / vb_h))
         else:
             target_w = target_h = int(size_px)
 
-        # 5) render PNG with explicit dimensions
+        # 5) render PNG at higher resolution
         png_bytes = cairosvg.svg2png(
             bytestring=svg_txt.encode("utf-8"),
-            output_width= target_w,
-            output_height= target_h
+            output_width=int(target_w * IMAGE_SCALE),
+            output_height=int(target_h * IMAGE_SCALE)
         )
         b64 = base64.b64encode(png_bytes).decode("ascii")
         src = f"data:image/png;base64,{b64}"
 
-        # 6) replace original <i>/<span> with our <img>
+        # 6) replace original tag with <img>, CSS scales it back to intended size
         img = soup.new_tag("img", src=src)
         img["style"] = f"height:{target_h}px;width:auto;vertical-align:-0.125em;"
         el.replace_with(img)
