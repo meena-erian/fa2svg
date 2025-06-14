@@ -21,8 +21,12 @@ FA_CDN_BASE = (
 # Select any <i> or <span> with a 'fa-' class
 ICON_SELECTOR = "i[class*='fa-'], span[class*='fa-']"
 
-# Map prefix to sub-folder in CDN
-STYLE_MAP = {"fas": "solid", "far": "regular", "fab": "brands"}
+# Map prefix to sub-folder in CDN (support both old and new FA class names)
+STYLE_MAP = {
+    "fas": "solid", "fa-solid": "solid",
+    "far": "regular", "fa-regular": "regular",
+    "fab": "brands", "fa-brands": "brands"
+}
 
 # Regex for inline CSS props (e.g. font-size, color)
 STYLE_PROP = re.compile(r"\s*([\w-]+)\s*:\s*([^;]+)\s*;?")
@@ -161,12 +165,14 @@ def to_inline_png_img(html: str) -> str:
         if any(c.startswith("fa-") for c in el.get("class", []))
     ]
 
+    STYLE_CLASSES = {"fa-solid", "fa-regular", "fa-brands", "fas", "far", "fab"}
+
     for el in candidates:
         classes = el.get("class", [])
-        # extract "mug-saucer" from "fa-mug-saucer"
+        # extract icon name, skipping style classes
         icon = next((c.split("fa-")[1]
                      for c in classes
-                     if c.startswith("fa-") and c != "fa"),
+                     if c.startswith("fa-") and c != "fa" and c not in STYLE_CLASSES),
                     None)
         if not icon:
             continue
@@ -245,9 +251,9 @@ def to_inline_svg(html: str) -> str:
 
     for el in soup.select(ICON_SELECTOR):
         classes = el.get("class", [])
-        # find the 'fa-xyz' part
+        # find the 'fa-xyz' part, skipping style classes
         icon = next(
-            (c.split("fa-")[1] for c in classes if c.startswith("fa-") and c != "fa"),
+            (c.split("fa-")[1] for c in classes if c.startswith("fa-") and c != "fa" and c not in {"fa-solid", "fa-regular", "fa-brands", "fas", "far", "fab"}),
             None
         )
         if not icon:
