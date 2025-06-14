@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 import pathlib
+from fa2svg._version import __version__
 
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
@@ -9,7 +10,7 @@ long_description = (HERE / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="fa2svg",
-    version="0.1.6",  # bump as needed
+    version=__version__,  # use version from _version.py
     description="Convert Font Awesome HTML tags into inline SVG",
     long_description=long_description,
     long_description_content_type="text/markdown",
