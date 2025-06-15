@@ -18,8 +18,23 @@ FA_CDN_BASE = (
     f"@fortawesome/fontawesome-free@{FA_VERSION}/svgs"
 )
 
-# Select any <i> or <span> with a 'fa-' class
-ICON_SELECTOR = "i[class*='fa-'], span[class*='fa-']"
+# Map common legacy FA names to their modern equivalent
+LEGACY_ICON_MAP = {
+    "map-marker-alt": "map-marker",
+    "long-arrow-alt-right": "long-arrow-right",
+    "long-arrow-alt-left": "long-arrow-left",
+    "long-arrow-alt-up": "long-arrow-up",
+    "long-arrow-alt-down": "long-arrow-down",
+    "external-link-alt": "external-link",
+    "sign-in-alt": "sign-in",
+    "sign-out-alt": "sign-out",
+    "edit": "pencil-alt",
+    "redo-alt": "redo",
+    "sync-alt": "sync",
+    "undo-alt": "undo",
+    "trash-alt": "trash-can",
+    "exclamation-triangle": "triangle-exclamation"
+}
 
 # Map prefix to sub-folder in CDN (support both old and new FA class names)
 STYLE_MAP = {
@@ -176,6 +191,9 @@ def to_inline_png_img(html: str) -> str:
                     None)
         if not icon:
             continue
+
+        # check for legacy names
+        icon = LEGACY_ICON_MAP.get(icon, icon)
 
         # find style folder, validate/fuzzy-match
         style_dir = next((SM[c] for c in classes if c in SM), "solid")
