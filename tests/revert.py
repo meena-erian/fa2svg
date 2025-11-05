@@ -13,4 +13,4 @@ converted = revert_to_original_fa(html)
 with open(REVERED_PATH, "w", encoding="utf-8") as f:
     f.write(converted)
 
-print(f"✅ Test complete. Output saved to {REVERED_PATH}")
+print(f"Test complete. Output saved to {REVERED_PATH}")

@@ -219,15 +219,15 @@ def to_inline_png_img(html: str) -> str:
 
         # build the <img>
         img = soup.new_tag("img", src=data_uri)
-        # stash original info in alt/title exactly as before
+        # stash original info in title only, put human-readable text in alt
         orig_style = el.get("style", "").replace("|", ";")
         parts = [el.name, " ".join(classes)]
         if orig_style:
             parts.append(orig_style)
         payload = "|".join(parts)
 
-        img["alt"]   = marker + payload
-        img["title"] = img["alt"]
+        img["title"] = marker + payload
+        img["alt"] = icon  # Just the icon name without style prefix
         img["style"] = f"height:{size_px}px;width:auto;vertical-align:-0.125em;"
 
         el.replace_with(img)
@@ -240,10 +240,10 @@ def revert_to_original_fa(html: str,
     soup = BeautifulSoup(html, "lxml")
 
     for img in list(soup.find_all("img")):
-        alt = img.get("alt", "")
-        if alt.startswith(FA_MARKER):
+        title = img.get("title", "")
+        if title.startswith(FA_MARKER):
             # strip marker, then split into at most 3 parts
-            payload = alt[len(FA_MARKER):]
+            payload = title[len(FA_MARKER):]
             tag_name, cls_str, *rest = payload.split("|", 2)
             classes = cls_str.split()
             original_style = rest[0] if rest else None
@@ -267,7 +267,13 @@ def to_inline_svg(html: str) -> str:
     """Replace Font Awesome <i>/<span> tags with inline SVG preserving CSS-like sizing/color."""
     soup = BeautifulSoup(html, "lxml")
 
-    for el in soup.select(ICON_SELECTOR):
+    # Find all i and span elements with fa- classes
+    candidates = [
+        el for el in soup.find_all(["i", "span"])
+        if any(c.startswith("fa-") for c in el.get("class", []))
+    ]
+    
+    for el in candidates:
         classes = el.get("class", [])
         # find the 'fa-xyz' part, skipping style classes
         icon = next(
